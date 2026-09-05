@@ -101,7 +101,7 @@
 		quranCaptionPromotionAtEnd: () => string;
 	};
 	let promotionCopy = $derived($LL.export as unknown as QuranCaptionPromotionCopy);
-	let meaningRanges = $state<MeaningExportRange[]>([]);
+	let meaningRanges = $state<MeaningExportRange[]>(globalState.getExportState.meaningRanges);
 	let selectedMeaningRangeId = $state<string | null>(null);
 	let selectedMeaningRangeIds = $state<string[]>([]);
 	let meaningSkippedRangeCount = $state(0);
@@ -307,6 +307,9 @@
 				globalState.getExportState.meaningMaxDurationSeconds,
 				globalState.getExportState.includeAllMeaningVerses
 			);
+			ProjectHistoryManager.track('generate meaning export ranges', () => {
+				globalState.getExportState.meaningRanges = validation.ranges;
+			});
 			meaningRanges = validation.ranges;
 			meaningSkippedRangeCount = validation.skippedCount;
 			meaningMissingVerseCount = validation.missingVerseKeys.length;

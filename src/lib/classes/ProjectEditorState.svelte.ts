@@ -13,6 +13,7 @@ import ModalManager from '$lib/components/modals/ModalManager';
 import LL from '$lib/i18n/i18n-svelte';
 import { get } from 'svelte/store';
 import type { StoredSegmentationContext } from '$lib/services/AutoSegmentation';
+import type { MeaningExportRange } from '$lib/services/MeaningExportRangeService';
 
 /**
  * État de l'éditeur de projet, utilisé pour gérer l'interface utilisateur et les interactions
@@ -470,6 +471,7 @@ export class ExportState extends SerializableBase {
 	exportRangeMode: 'time' | 'verse' | 'meaning' = $state('time');
 	meaningMaxDurationSeconds: number = $state(60);
 	includeAllMeaningVerses: boolean = $state(false);
+	meaningRanges: MeaningExportRange[] = $state([]);
 	videoStartTime: number = $state(0);
 	videoEndTime: number = $state(0);
 	skipRanges: ExportSkipRange[] = $state([]);
