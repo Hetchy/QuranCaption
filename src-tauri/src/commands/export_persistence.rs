@@ -33,7 +33,7 @@ pub fn merge_export_entries(
 
     let mut existing = if file_path.exists() {
         let content = fs::read_to_string(&file_path).map_err(|error| error.to_string())?;
-        serde_json::from_str::<Vec<Value>>(&content).map_err(|error| error.to_string())?
+        serde_json::from_str::<Vec<Value>>(&content).unwrap_or_default()
     } else {
         Vec::new()
     };
