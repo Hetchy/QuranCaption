@@ -65,6 +65,7 @@ import {
 	BATCH_TRANSLATION_CONCURRENCY,
 	BatchTranslationService,
 	reconcileBatchTranslations,
+	synchronizeBatchTranslationEditorFilters,
 	synchronizeBatchTranslationEditorVisibility,
 	type BatchTranslationQueueProgress
 } from '$lib/services/BatchTranslationService';
@@ -168,7 +169,7 @@ describe('BatchTranslationService', () => {
 		aiTrimMocks.buildBatches.mockReturnValue([]);
 	});
 
-	it('synchronizes exclusive selection and individual visibility across the batch', async () => {
+	it('synchronizes translation visibility and filters across the batch', async () => {
 		const items = [createItem(1), createItem(2)];
 		const projects = new Map(
 			items.map((item) => [
@@ -182,8 +183,15 @@ describe('BatchTranslationService', () => {
 								new Edition('b', 'second', 'Second', 'French', 'ltr', '', '', '', '', false)
 							]
 						}
+					},
+					projectEditorState: {
+						translationsEditor: {
+							filters: { reviewed: false, error: true },
+							searchQuery: '',
+							onlyShowOverlappingSubtitles: false
+						}
 					}
-				} as Project
+				} as unknown as Project
 			])
 		);
 		batchMocks.load.mockResolvedValue(new Batch('Batch', items, 10));
@@ -214,6 +222,22 @@ describe('BatchTranslationService', () => {
 			).toEqual([true, true]);
 		}
 		expect(projectMocks.save).toHaveBeenCalledTimes(4);
+
+		const sourceProject = projects.get(1)!;
+		sourceProject.projectEditorState.translationsEditor.filters.reviewed = true;
+		sourceProject.projectEditorState.translationsEditor.searchQuery = '1:2';
+		sourceProject.projectEditorState.translationsEditor.onlyShowOverlappingSubtitles = true;
+		await synchronizeBatchTranslationEditorFilters(10, sourceProject);
+
+		for (const project of projects.values()) {
+			expect(project.projectEditorState.translationsEditor.filters).toEqual({
+				reviewed: true,
+				error: true
+			});
+			expect(project.projectEditorState.translationsEditor.searchQuery).toBe('1:2');
+			expect(project.projectEditorState.translationsEditor.onlyShowOverlappingSubtitles).toBe(true);
+		}
+		expect(projectMocks.save).toHaveBeenCalledTimes(6);
 	});
 
 	it('limits addition to three projects and never changes the current project', async () => {

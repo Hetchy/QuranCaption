@@ -13,6 +13,7 @@
 	const LL_ = get(LL);
 
 	let { edition } = $props();
+	let showInEditorId = $derived(`showInTranslationsEditor-${edition.name}`);
 	const translationMetadata = $derived(() => globalState.getTranslationMetadata(edition.language));
 
 	async function fetchFromOtherProjects(event: MouseEvent): Promise<void> {
@@ -70,10 +71,11 @@
 		<div class="bg-secondary rounded-lg px-3 py-2 border border-color">
 			<label
 				class="text-sm font-medium text-secondary cursor-pointer flex items-center gap-3"
-				for="showInTranslationsEditor"
+				for={showInEditorId}
 			>
 				<div class="relative">
 					<input
+						id={showInEditorId}
 						type="checkbox"
 						checked={edition.showInTranslationsEditor}
 						onchange={(event) =>

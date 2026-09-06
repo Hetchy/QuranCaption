@@ -115,6 +115,38 @@ export async function synchronizeBatchTranslationEditorVisibility(
 	}
 }
 
+/**
+ * Synchronise les filtres de traduction du projet courant dans tout son Batch.
+ * @param {number} batchId Identifiant du Batch parent.
+ * @param {Project} sourceProject Projet fournissant les filtres à partager.
+ * @returns {Promise<void>} Résolution après la sauvegarde des projets modifiés.
+ */
+export async function synchronizeBatchTranslationEditorFilters(
+	batchId: number,
+	sourceProject: Project
+): Promise<void> {
+	const source = sourceProject.projectEditorState.translationsEditor;
+	const filters = { ...source.filters };
+	const batch = await BatchService.load(batchId);
+	for (const item of batch.projects) {
+		const project =
+			sourceProject.detail.id === item.projectId
+				? sourceProject
+				: await ProjectService.load(item.projectId);
+		const target = project.projectEditorState.translationsEditor;
+		const changed =
+			JSON.stringify(target.filters) !== JSON.stringify(filters) ||
+			target.searchQuery !== source.searchQuery ||
+			target.onlyShowOverlappingSubtitles !== source.onlyShowOverlappingSubtitles;
+		if (changed) {
+			target.filters = { ...filters };
+			target.searchQuery = source.searchQuery;
+			target.onlyShowOverlappingSubtitles = source.onlyShowOverlappingSubtitles;
+		}
+		if (changed || project === sourceProject) await ProjectService.save(project);
+	}
+}
+
 export class BatchTranslationService {
 	private readonly onUpdate?: BatchTranslationServiceOptions['onUpdate'];
 	private readonly onProgress?: BatchTranslationServiceOptions['onProgress'];

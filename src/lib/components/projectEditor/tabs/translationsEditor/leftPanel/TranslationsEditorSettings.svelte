@@ -9,6 +9,8 @@
 	import toast from 'svelte-5-french-toast';
 	import EditionViewer from './EditionViewer.svelte';
 	import ModalManager from '$lib/components/modals/ModalManager';
+	import { ProjectHistoryManager } from '$lib/services/undoRedo/ProjectHistoryManager';
+	import { synchronizeBatchTranslationEditorFilters } from '$lib/services/BatchTranslationService';
 
 	const SEARCH_DEBOUNCE_MS = 250;
 
@@ -33,13 +35,33 @@
 		}
 	});
 
-	// Fonction pour valider le search query
-	function validateSearchQuery() {
+	/**
+	 * Modifie puis partage les filtres de traduction avec les projets du même Batch.
+	 * @param {() => void} mutate Modification locale à appliquer.
+	 * @returns {Promise<void>} Résolution après la sauvegarde des projets concernés.
+	 */
+	async function updateTranslationFilters(mutate: () => void): Promise<void> {
+		const project = globalState.currentProject!;
+		await ProjectHistoryManager.trackAsync('update translation filters', async () => {
+			mutate();
+			if (project.detail.batchId !== null) {
+				await synchronizeBatchTranslationEditorFilters(project.detail.batchId, project);
+			}
+		});
+	}
+
+	/**
+	 * Valide et partage la recherche courante.
+	 * @returns {Promise<void>} Résolution après la synchronisation éventuelle du Batch.
+	 */
+	async function validateSearchQuery(): Promise<void> {
 		if (searchDebounceTimer !== undefined) {
 			clearTimeout(searchDebounceTimer);
 			searchDebounceTimer = undefined;
 		}
-		globalState.getTranslationsState.searchQuery = localSearchQuery;
+		await updateTranslationFilters(() => {
+			globalState.getTranslationsState.searchQuery = localSearchQuery;
+		});
 	}
 
 	/**
@@ -68,13 +90,13 @@
 	 */
 	function scheduleSearchQueryValidation(): void {
 		if (searchDebounceTimer !== undefined) clearTimeout(searchDebounceTimer);
-		searchDebounceTimer = setTimeout(validateSearchQuery, SEARCH_DEBOUNCE_MS);
+		searchDebounceTimer = setTimeout(() => void validateSearchQuery(), SEARCH_DEBOUNCE_MS);
 	}
 
 	// Gestionnaire pour la touche Entrée
 	function handleSearchKeypress(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
-			validateSearchQuery();
+			void validateSearchQuery();
 		}
 	}
 
@@ -127,7 +149,9 @@
 				erroredVerses += report.erroredVerses;
 			}
 
-			globalState.getTranslationsState.checkOnlyFilters(['error']);
+			await updateTranslationFilters(() => {
+				globalState.getTranslationsState.checkOnlyFilters(['error']);
+			});
 			await globalState.currentProject?.save(false);
 
 			if (markedSegments > 0) {
@@ -204,15 +228,15 @@
 					onkeypress={handleSearchKeypress}
 				/>
 				<button
-					onclick={validateSearchQuery}
 					class="flex items-center border border-color border-r-0 px-1 hover:bg-accent"
+					onclick={() => void validateSearchQuery()}
 				>
 					<span class="material-icons text-base">search</span>
 				</button>
 				<button
 					onclick={() => {
 						localSearchQuery = '';
-						validateSearchQuery();
+						void validateSearchQuery();
 					}}
 					class="flex items-center border border-color rounded-r-lg px-1 hover:bg-accent"
 				>
@@ -231,7 +255,13 @@
 							<input
 								type="checkbox"
 								id="filter-checkbox-{filter}"
-								bind:checked={globalState.getTranslationsState.filters[filter]}
+								checked={globalState.getTranslationsState.filters[filter]}
+								onchange={(event) =>
+									void updateTranslationFilters(() => {
+										globalState.getTranslationsState.filters[filter] = (
+											event.currentTarget as HTMLInputElement
+										).checked;
+									})}
 								class="h-3.5 w-3.5 rounded transition-all duration-200 focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-accent)]"
 							/>
 							<span
@@ -265,7 +295,13 @@
 					<input
 						id="overlap-only-checkbox"
 						type="checkbox"
-						bind:checked={globalState.getTranslationsState.onlyShowOverlappingSubtitles}
+						checked={globalState.getTranslationsState.onlyShowOverlappingSubtitles}
+						onchange={(event) =>
+							void updateTranslationFilters(() => {
+								globalState.getTranslationsState.onlyShowOverlappingSubtitles = (
+									event.currentTarget as HTMLInputElement
+								).checked;
+							})}
 						class="h-3.5 w-3.5 rounded border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-secondary)]"
 					/>
 					<span class="text-xs font-semibold text-primary leading-tight"
@@ -277,11 +313,12 @@
 			<div class="grid xl:grid-cols-2 gap-2 px-1 pb-1">
 				<button
 					class="btn w-full px-2 py-2 text-xs font-medium hover:bg-blue-500 hover:border-blue-500 hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5 relative hover:z-10"
-					onclick={() => {
-						globalState.getTranslationsState.checkOnlyFilters(
-							Object.keys(globalState.getTranslationsState.filters)
-						);
-					}}
+					onclick={() =>
+						void updateTranslationFilters(() => {
+							globalState.getTranslationsState.checkOnlyFilters(
+								Object.keys(globalState.getTranslationsState.filters)
+							);
+						})}
 				>
 					<span class="material-icons text-base">select_all</span>
 					{$LL.editor.showAllSubtitles()}
@@ -289,15 +326,16 @@
 
 				<button
 					class="btn w-full px-2 py-2 text-xs font-medium hover:bg-accent-primary hover:border-accent-primary hover:text-black transition-all duration-200 flex items-center justify-center gap-1.5 relative hover:z-10"
-					onclick={() => {
-						globalState.getTranslationsState.checkOnlyFilters([
-							'to review',
-							'ai error',
-							'error',
-							'reviewed',
-							'automatically trimmed'
-						]);
-					}}
+					onclick={() =>
+						void updateTranslationFilters(() => {
+							globalState.getTranslationsState.checkOnlyFilters([
+								'to review',
+								'ai error',
+								'error',
+								'reviewed',
+								'automatically trimmed'
+							]);
+						})}
 				>
 					<span class="material-icons text-base">checklist</span>
 					{$LL.editor.showPartialVerses()}
@@ -305,9 +343,14 @@
 
 				<button
 					class="btn w-full px-2 py-2 text-xs font-medium hover:bg-emerald-500 hover:border-emerald-500 hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5 relative hover:z-10"
-					onclick={() => {
-						globalState.getTranslationsState.checkOnlyFilters(['ai trimmed', 'ai error', 'error']);
-					}}
+					onclick={() =>
+						void updateTranslationFilters(() => {
+							globalState.getTranslationsState.checkOnlyFilters([
+								'ai trimmed',
+								'ai error',
+								'error'
+							]);
+						})}
 				>
 					<span class="material-icons text-base">auto_fix_high</span>
 					{$LL.editor.showAiFetched()}
@@ -315,9 +358,10 @@
 
 				<button
 					class="btn w-full px-2 py-2 text-xs font-medium hover:bg-orange-500 hover:border-orange-500 hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5 relative hover:z-10"
-					onclick={() => {
-						globalState.getTranslationsState.checkOnlyFilters(['to review', 'ai error', 'error']);
-					}}
+					onclick={() =>
+						void updateTranslationFilters(() => {
+							globalState.getTranslationsState.checkOnlyFilters(['to review', 'ai error', 'error']);
+						})}
 				>
 					<span class="material-icons text-base">priority_high</span>
 					{$LL.editor.showNeedsReview()}
