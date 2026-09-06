@@ -4,7 +4,8 @@ import {
 	isBatchProjectSegmentationVerified,
 	type Batch,
 	type BatchProjectItem,
-	type BatchProjectTranslationState
+	type BatchProjectTranslationState,
+	type Project
 } from '$lib/classes';
 import { globalState } from '$lib/runes/main.svelte';
 import { BatchService } from './BatchService';
@@ -78,6 +79,40 @@ function cloneEdition(edition: Edition): Edition {
 		edition.linkmin,
 		edition.showInTranslationsEditor
 	);
+}
+
+/**
+ * Synchronise la visibilité d'une édition dans tous les projets d'un Batch.
+ * @param {number} batchId Identifiant du Batch parent.
+ * @param {string} editionName Nom de l'édition modifiée.
+ * @param {boolean} visible Visibilité à appliquer à l'édition.
+ * @param {boolean} exclusive Masque également toutes les autres éditions.
+ * @param {Project | null} currentProject Projet déjà chargé à réutiliser.
+ * @returns {Promise<void>} Résolution après la sauvegarde des projets modifiés.
+ */
+export async function synchronizeBatchTranslationEditorVisibility(
+	batchId: number,
+	editionName: string,
+	visible: boolean,
+	exclusive: boolean = false,
+	currentProject: Project | null = globalState.currentProject
+): Promise<void> {
+	const batch = await BatchService.load(batchId);
+	for (const item of batch.projects) {
+		const project =
+			currentProject?.detail.id === item.projectId
+				? currentProject
+				: await ProjectService.load(item.projectId);
+		let changed = false;
+		for (const edition of project.content.projectTranslation.addedTranslationEditions) {
+			if (!exclusive && edition.name !== editionName) continue;
+			const nextVisible = edition.name === editionName ? visible : false;
+			if (edition.showInTranslationsEditor === nextVisible) continue;
+			edition.showInTranslationsEditor = nextVisible;
+			changed = true;
+		}
+		if (changed) await ProjectService.save(project);
+	}
 }
 
 export class BatchTranslationService {

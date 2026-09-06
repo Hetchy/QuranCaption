@@ -43,6 +43,7 @@
 	} from '$lib/services/BatchReviewNavigationService';
 	import {
 		BatchTranslationService,
+		synchronizeBatchTranslationEditorVisibility,
 		type BatchTranslationQueueProgress
 	} from '$lib/services/BatchTranslationService';
 	import {
@@ -700,6 +701,19 @@
 			const defaults = actionableProjects.length > 0 ? actionableProjects : projects;
 			replaceProjectSelection(defaults.map((project) => project.projectId));
 		}
+	}
+
+	/**
+	 * Sélectionne une édition et l'affiche seule dans tous les éditeurs du Batch.
+	 * @param {string} editionName Nom de l'édition choisie.
+	 * @returns {Promise<void>} Résolution après la synchronisation des projets.
+	 */
+	async function changeActiveTranslationEdition(editionName: string): Promise<void> {
+		selectActiveTranslationEdition(editionName);
+		if (!batch) return;
+		await ProjectHistoryManager.trackAsync('select batch translation', () =>
+			synchronizeBatchTranslationEditorVisibility(batch!.id, editionName, true, true, null)
+		);
 	}
 
 	/**
@@ -1678,7 +1692,7 @@
 						class="min-w-56 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-[var(--text-primary)]"
 						value={activeTranslationEditionName ?? ''}
 						onchange={(event) =>
-							selectActiveTranslationEdition((event.currentTarget as HTMLSelectElement).value)}
+							void changeActiveTranslationEdition((event.currentTarget as HTMLSelectElement).value)}
 					>
 						{#each translationEditionNames as editionName (editionName)}
 							<option value={editionName}>
@@ -2316,7 +2330,7 @@
 					class="mt-2 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-[var(--text-primary)]"
 					value={activeTranslationEditionName}
 					onchange={(event) =>
-						selectActiveTranslationEdition((event.currentTarget as HTMLSelectElement).value)}
+						void changeActiveTranslationEdition((event.currentTarget as HTMLSelectElement).value)}
 				>
 					{#each translationEditionNames as editionName (editionName)}
 						<option value={editionName}>

@@ -21,6 +21,7 @@ const reviewNavigationMocks = vi.hoisted(() => ({
 }));
 const translationMocks = vi.hoisted(() => ({
 	reconcile: vi.fn(async () => false),
+	synchronizeVisibility: vi.fn(async () => undefined),
 	add: vi.fn(),
 	fetch: vi.fn(),
 	onUpdate: null as ((...args: unknown[]) => void) | null
@@ -89,7 +90,8 @@ vi.mock('$lib/services/BatchTranslationService', () => ({
 			return translationMocks.fetch(...args);
 		}
 	},
-	reconcileBatchTranslations: translationMocks.reconcile
+	reconcileBatchTranslations: translationMocks.reconcile,
+	synchronizeBatchTranslationEditorVisibility: translationMocks.synchronizeVisibility
 }));
 vi.mock('$lib/services/QdcTranslationService', () => ({
 	QdcTranslationService: { getAvailableTranslations: vi.fn(async () => ({})) }

@@ -81,13 +81,8 @@
 	});
 
 	let editionsToShowInEditor = $derived(() => {
-		const focusedEdition =
-			globalState.shared.batchReview.active && globalState.shared.batchReview.kind === 'translation'
-				? globalState.shared.batchReview.editionName
-				: null;
 		return globalState.currentProject!.content.projectTranslation.addedTranslationEditions.filter(
-			(edition) =>
-				focusedEdition ? edition.name === focusedEdition : edition.showInTranslationsEditor
+			(edition) => edition.showInTranslationsEditor
 		);
 	});
 

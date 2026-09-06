@@ -4,6 +4,7 @@
 	import { globalState } from '$lib/runes/main.svelte';
 	import { fetchTranslationsFromOtherProjects } from '$lib/services/TranslationFetchService';
 	import { ProjectHistoryManager } from '$lib/services/undoRedo/ProjectHistoryManager';
+	import { synchronizeBatchTranslationEditorVisibility } from '$lib/services/BatchTranslationService';
 	import toast from 'svelte-5-french-toast';
 	import ModalManager from '$lib/components/modals/ModalManager';
 	import LL from '$lib/i18n/i18n-svelte';
@@ -33,6 +34,28 @@
 			error: LL_.editor.failedToFetchTranslations()
 		});
 	}
+
+	/**
+	 * Modifie puis partage la visibilité de l'édition avec les projets du même Batch.
+	 * @param {boolean} visible Nouvelle visibilité dans l'éditeur.
+	 * @returns {Promise<void>} Résolution après la sauvegarde des projets concernés.
+	 */
+	async function setShowInTranslationsEditor(visible: boolean): Promise<void> {
+		const project = globalState.currentProject!;
+		await ProjectHistoryManager.trackAsync('show translation in editor', async () => {
+			if (project.detail.batchId !== null) {
+				await synchronizeBatchTranslationEditorVisibility(
+					project.detail.batchId,
+					edition.name,
+					visible,
+					false,
+					project
+				);
+			} else {
+				edition.showInTranslationsEditor = visible;
+			}
+		});
+	}
 </script>
 
 <div
@@ -52,19 +75,15 @@
 				<div class="relative">
 					<input
 						type="checkbox"
-						bind:checked={edition.showInTranslationsEditor}
+						checked={edition.showInTranslationsEditor}
+						onchange={(event) =>
+							void setShowInTranslationsEditor((event.currentTarget as HTMLInputElement).checked)}
 						class="w-5 h-5 rounded"
 					/>
 				</div>
 
 				<div class="flex-1">
-					<span
-						class="block font-medium"
-						onmousedown={(event) => {
-							event.preventDefault();
-							edition.showInTranslationsEditor = !edition.showInTranslationsEditor;
-						}}
-					>
+					<span class="block font-medium">
 						{$LL.editor.showInEditor()}
 					</span>
 				</div>

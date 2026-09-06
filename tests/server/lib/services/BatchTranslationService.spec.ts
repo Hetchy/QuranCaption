@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const batchMocks = vi.hoisted(() => ({ save: vi.fn(async () => undefined) }));
-const projectMocks = vi.hoisted(() => ({ load: vi.fn(), loadUserProjectsDetails: vi.fn() }));
+const batchMocks = vi.hoisted(() => ({
+	load: vi.fn(),
+	save: vi.fn(async () => undefined)
+}));
+const projectMocks = vi.hoisted(() => ({
+	load: vi.fn(),
+	save: vi.fn(async () => undefined),
+	loadUserProjectsDetails: vi.fn()
+}));
 const translationMocks = vi.hoisted(() => ({
 	getClips: vi.fn(),
 	getCounts: vi.fn(),
@@ -58,6 +65,7 @@ import {
 	BATCH_TRANSLATION_CONCURRENCY,
 	BatchTranslationService,
 	reconcileBatchTranslations,
+	synchronizeBatchTranslationEditorVisibility,
 	type BatchTranslationQueueProgress
 } from '$lib/services/BatchTranslationService';
 
@@ -143,6 +151,7 @@ function createProject(id: number, waitForDownload: () => Promise<void>): Projec
 describe('BatchTranslationService', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		globalState.currentProject = null;
 		globalState.userProjectsDetails = [];
 		translationMocks.getClips.mockReturnValue([{}]);
 		translationMocks.getCounts.mockReturnValue({
@@ -157,6 +166,54 @@ describe('BatchTranslationService', () => {
 		aiSplitMocks.buildBatches.mockReturnValue([]);
 		aiTrimMocks.buildCandidates.mockReturnValue([]);
 		aiTrimMocks.buildBatches.mockReturnValue([]);
+	});
+
+	it('synchronizes exclusive selection and individual visibility across the batch', async () => {
+		const items = [createItem(1), createItem(2)];
+		const projects = new Map(
+			items.map((item) => [
+				item.projectId,
+				{
+					detail: { id: item.projectId },
+					content: {
+						projectTranslation: {
+							addedTranslationEditions: [
+								new Edition('a', 'first', 'First', 'English', 'ltr', '', '', '', '', true),
+								new Edition('b', 'second', 'Second', 'French', 'ltr', '', '', '', '', false)
+							]
+						}
+					}
+				} as Project
+			])
+		);
+		batchMocks.load.mockResolvedValue(new Batch('Batch', items, 10));
+		projectMocks.load.mockImplementation(async (id: number) => projects.get(id));
+
+		await synchronizeBatchTranslationEditorVisibility(10, 'second', true, true);
+
+		for (const project of projects.values()) {
+			expect(
+				project.content.projectTranslation.addedTranslationEditions.map((item) => [
+					item.name,
+					item.showInTranslationsEditor
+				])
+			).toEqual([
+				['first', false],
+				['second', true]
+			]);
+		}
+		expect(projectMocks.save).toHaveBeenCalledTimes(2);
+
+		await synchronizeBatchTranslationEditorVisibility(10, 'first', true);
+
+		for (const project of projects.values()) {
+			expect(
+				project.content.projectTranslation.addedTranslationEditions.map(
+					(item) => item.showInTranslationsEditor
+				)
+			).toEqual([true, true]);
+		}
+		expect(projectMocks.save).toHaveBeenCalledTimes(4);
 	});
 
 	it('limits addition to three projects and never changes the current project', async () => {
