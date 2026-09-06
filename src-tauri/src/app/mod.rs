@@ -22,10 +22,7 @@ fn open_additional_window(app: &tauri::AppHandle) {
             return;
         };
         let mut config = base_config.clone();
-        config.label = format!(
-            "main{}",
-            NEXT_WINDOW_ID.fetch_add(1, Ordering::Relaxed)
-        );
+        config.label = format!("main{}", NEXT_WINDOW_ID.fetch_add(1, Ordering::Relaxed));
 
         if let Ok(builder) = tauri::WebviewWindowBuilder::from_config(&app, &config) {
             let _ = builder.build();

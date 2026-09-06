@@ -101,10 +101,7 @@ pub async fn preload_audio_recitations() -> Result<serde_json::Value, String> {
 
 /// Récupère l'URL audio directe d'un chapitre audio-only (sans segments).
 #[tauri::command]
-pub async fn preload_audio(
-    recitation: String,
-    chapter: i64,
-) -> Result<serde_json::Value, String> {
+pub async fn preload_audio(recitation: String, chapter: i64) -> Result<serde_json::Value, String> {
     segmentation::preload_audio(recitation, chapter).await
 }
 

@@ -1,3 +1,4 @@
+mod background_timeline;
 /// Commandes d'export vidéo et concaténation.
 ///
 /// Ce module est découpé en sous-modules spécialisés pour faciliter la
@@ -20,7 +21,6 @@
 /// - `concat_command` : commande Tauri de concaténation finale
 #[allow(dead_code)]
 pub mod batching;
-mod background_timeline;
 pub mod codec;
 pub mod commands;
 #[allow(dead_code)]

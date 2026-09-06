@@ -385,7 +385,8 @@ pub(crate) fn resolve_engine_python_exe(
         if python_exe.exists() {
             Ok(python_exe)
         } else {
-            let system_python = resolve_system_python(MIN_LOCAL_PYTHON_MAJOR, MIN_LOCAL_PYTHON_MINOR)?;
+            let system_python =
+                resolve_system_python(MIN_LOCAL_PYTHON_MAJOR, MIN_LOCAL_PYTHON_MINOR)?;
             Ok(PathBuf::from(system_python.command))
         }
     } else {
